@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+
+        <title>Babylon.js sample code</title>
+
+        <!-- Babylon.js -->
+        <script src="https://code.jquery.com/pep/0.4.2/pep.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.6.2/dat.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/ammo.js"></script>
+        <script src="https://preview.babylonjs.com/cannon.js"></script>
+        <script src="https://preview.babylonjs.com/Oimo.js"></script>
+        <script src="https://preview.babylonjs.com/earcut.min.js"></script>
+        <script src="https://preview.babylonjs.com/babylon.js"></script>
+        <script src="https://preview.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+        <script src="https://preview.babylonjs.com/proceduralTexturesLibrary/babylonjs.proceduralTextures.min.js"></script>
+        <script src="https://preview.babylonjs.com/postProcessesLibrary/babylonjs.postProcess.min.js"></script>
+        <script src="https://preview.babylonjs.com/loaders/babylonjs.loaders.js"></script>
+        <script src="https://preview.babylonjs.com/serializers/babylonjs.serializers.min.js"></script>
+        <script src="https://preview.babylonjs.com/gui/babylon.gui.min.js"></script>
+        <script src="https://preview.babylonjs.com/inspector/babylon.inspector.bundle.js"></script>
+
+        <style>
+            html, body {
+                overflow: hidden;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #renderCanvas {
+                width: 100%;
+                height: 100%;
+                touch-action: none;
+            }
+        </style>
+    </head>
+<body>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+        var canvas = document.getElementById("renderCanvas");
+
+        var engine = null;
+        var scene = null;
+        var sceneToRender = null;
+        var createDefaultEngine = function() { return new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true,  disableWebGL2Support: false}); };
+
+        const createScene = () => {
+            const scene = new BABYLON.Scene(engine);
+            var ground = new BABYLON.MeshBuilder();
+            var tiles = [];
+            var sounds = [];
+
+            const camera = new BABYLON.ArcRotateCamera("camera", -3 * Math.PI / 4,  -1.5 * Math.PI , 60, new BABYLON.Vector3(0, 10, 0));
+            camera.attachControl(canvas, true);
+            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
+
+            createBoardKeyboard();
+
+            for(i = 0; i < 15; i++){
+                if(i == 0 || i == 3 || i == 7 || i == 10)
+                    tiles.push(createWhiteKey(2, i));
+                else if(i == 1 || i == 4 || i == 5 || i == 8 || i == 11 || i == 12)
+                    tiles.push(createWhiteKey(3, i));
+                else if(i == 2 || i == 6 || i == 9 || i == 13)
+                    tiles.push(createWhiteKey(1, i));
+                else
+                    tiles.push(createWhiteKey(0, i));
+            }
+
+            for(i = 0; i < 14; i++){
+                if(i != 2 && i != 6 && i != 9 && i != 13)
+                tiles.push(createBlackKeys(i));
+            }
+
+            sounds = loadSoundsToScene(scene);
+            
+            scene.onPointerDown = function (evt, pickResult) {
+                if (pickResult.hit && pickResult.pickedMesh.name.includes("Key")) {
+                    playNoteByTouch(pickResult.pickedMesh, sounds);
+                }
+                else if(pickResult.hit && pickResult.pickedMesh.name.includes("Demo")){
+                    switch(pickResult.pickedMesh.name){
+                        case "btDemo1":
+                            demoModeNonaSinfonia(scene, sounds);
+                            break;
+                        case "btDemo2":
+                            demoModePourElise(scene, sounds);
+                            break;
+                        case "btDemo3":
+                            demoModeMario(scene, sounds);
+                            break;
+                        case "btDemo4":
+                            demoModeSigurRosUntitled3(scene, sounds);
+                            break;
+                        case "btDemo5":
+                            demoRadioheadNoSurprises(scene, sounds);
+                            break;
+                        case "btDemo6":
+                            demoLAutreValseDAmelie(scene, sounds);
+                            break;
+                        case "btDemo7":
+                            demoBrasileirinho(scene, sounds);
+                            break;
+                        case "btDemo8":
+                            demoBabyShark(scene, sounds);
+                            break;
+                        default:
+                            break;
+                            
+                    }
+                }
+            };
+
+            return scene;
+        }
+
+        
+        function playTileByNoteName(noteName, tiles, sounds){
+            //pegar mesh da nota específica dentro de tiles
+            var meshName = pickNoteByName(noteName);
+            
+            var meshToPlay = scene.getMeshByName(meshName);
+
+            //som
+            var note = defineNote(meshToPlay.name, sounds);
+            note.play();
+
+            //animação
+            var framerate = 10;
+            var ySlide = animateTile(meshToPlay);
+            scene.beginDirectAnimation(meshToPlay, [ySlide], 0, 2 * framerate, false, 10)   
+        }
+
+        function playNoteByTouch(noteMesh, sounds){
+            //som
+            var note = defineNote(noteMesh.name, sounds);
+            note.play();
+            
+            //animação
+            var framerate = 10;
+            var ySlide = animateTile(noteMesh);
+
+            scene.beginDirectAnimation(noteMesh, [ySlide], 0, 2 * framerate, false, 10)    
+        }
+        
+        function pickNoteByName(nameNote){
+            switch(nameNote){
+                case "do1":
+                    return "whiteKey0";
+                    break;
+                case "do1sus":
+                    return "blackKey0";
+                    break;
+                case "re1":
+                    return "whiteKey1";
+                    break;
+                case "re1sus":
+                    return "blackKey1";
+                    break;
+                case "mi1":
+                    return "whiteKey2";
+                    break;
+                case "fa1":
+                    return "whiteKey3";
+                    break;
+                case "fa1sus":
+                    return "blackKey3";
+                    break;
+                case "sol1":
+                    return "whiteKey4";
+                    break;
+                case "sol1sus":
+                    return "blackKey4";
+                    break;
+                case "la1":
+                    return "whiteKey5";
+                    break;
+                case "la1sus":
+                    return "blackKey5";
+                    break;
+                case "si1":
+                    return "whiteKey6";
+                    break;
+                case "do2":
+                    return "whiteKey7";
+                    break;
+                case "do2sus":
+                    return "blackKey7";
+                    break;
+                case "re2":
+                    return "whiteKey8";
+                    break;
+                case "re2sus":
+                    return "blackKey8";
+                    break;
+                case "mi2":
+                    return "whiteKey9";
+                    break;
+                case "fa2":
+                    return "whiteKey10";
+                    break;
+                case "fa2sus":
+                    return "blackKey10";
+                    break;
+                case "sol2":
+                    return "whiteKey11";
+                    break;
+                case "sol2sus":
+                    return "blackKey11";
+                    break;
+                case "la2":
+                    return "whiteKey12";
+                    break;
+                case "la2sus":
+                    return "blackKey12";
+                    break;
+                case "si2":
+                    return "whiteKey13";
+                    break;
+                case "do3":
+                    return "whiteKey14";
+                    break;
+            }
+        }
+
+        function createWhiteKey(typeOfKey, keyId){
+            var key;
+            switch(typeOfKey){
+                case 0:
+                    var shape0 = [
+                        new BABYLON.Vector3(0, 0, 0),
+                        new BABYLON.Vector3(3, 0, 0),
+                        new BABYLON.Vector3(3, 0, 12),
+                        new BABYLON.Vector3(0, 0, 12)
+
+                    ];
+                    key = BABYLON.MeshBuilder.ExtrudePolygon("whiteKey" + keyId, {shape:shape0, depth: 1.5, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+                    break;
+
+                case 1:
+                    var shape1 = [
+                        new BABYLON.Vector3(0, 0, 0),
+                        new BABYLON.Vector3(3, 0, 0),
+                        new BABYLON.Vector3(3, 0, 12),
+                        new BABYLON.Vector3(1, 0, 12),
+                        new BABYLON.Vector3(1, 0, 6),
+                        new BABYLON.Vector3(0, 0, 6)
+
+                    ];
+                    key = BABYLON.MeshBuilder.ExtrudePolygon("whiteKey" + keyId, {shape:shape1, depth: 1.5, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+                    break;
+
+                case 2:
+                var shape2 = [
+                        new BABYLON.Vector3(0, 0, 0),
+                        new BABYLON.Vector3(3, 0, 0),
+                        new BABYLON.Vector3(3, 0, 6),
+                        new BABYLON.Vector3(2, 0, 6),
+                        new BABYLON.Vector3(2, 0, 12),
+                        new BABYLON.Vector3(0, 0, 12)
+
+                    ];
+                    key = BABYLON.MeshBuilder.ExtrudePolygon("whiteKey" + keyId, {shape:shape2, depth: 1.5, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+                    break;
+
+                case 3:
+                    var shape3 = [
+                        new BABYLON.Vector3(0, 0, 0),
+                        new BABYLON.Vector3(3, 0, 0),
+                        new BABYLON.Vector3(3, 0, 6),
+                        new BABYLON.Vector3(2, 0, 6),
+                        new BABYLON.Vector3(2, 0, 12),
+                        new BABYLON.Vector3(1, 0, 12),
+                        new BABYLON.Vector3(1, 0, 6),
+                        new BABYLON.Vector3(0, 0, 6),
+
+                    ];
+                    key = BABYLON.MeshBuilder.ExtrudePolygon("whiteKey" + keyId, {shape:shape3, depth: 1.5, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+                    break;
+                default:
+                    break;
+            }
+
+            key.setPositionWithLocalVector(new BABYLON.Vector3(keyId * 3.25 - 24, 0, 0));
+            return key;
+        }
+
+        function createBlackKeys(keyId){
+            var key;
+            var shape4 = [
+                        new BABYLON.Vector3(0, 0, 0),
+                        new BABYLON.Vector3(2, 0, 0),
+                        new BABYLON.Vector3(1.5, 0, 1.5),
+                        new BABYLON.Vector3(0.5, 0, 1.5)
+                    ];
+            key = BABYLON.MeshBuilder.ExtrudePolygon("blackKey" + keyId, {shape:shape4, depth: 6, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+            key.material = myMaterial;
+
+            key.rotation.x = -(Math.PI)/2;
+            key.setPositionWithLocalVector(new BABYLON.Vector3(2.25 + 3.25 * keyId -24 , -6, -1));
+        }
+
+        function animateTile(tile, sounds){
+            var frameRate = 10;
+                    var ySlide = new BABYLON.Animation("ySlide", "position.y", frameRate, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+
+                    var keyFrames = [];
+
+                    if(tile.name.includes("white")){
+                                keyFrames.push({
+                                frame: 0,
+                                value: 0
+                            });
+
+                            keyFrames.push({
+                                frame: frameRate,
+                                value: -0.5
+                            });
+
+                            keyFrames.push({
+                                frame: 2 * frameRate,
+                                value: 0
+                            });
+                    }
+
+                    else {
+                                keyFrames.push({
+                                frame: 0,
+                                value: -1
+                            });
+
+                            keyFrames.push({
+                                frame: frameRate,
+                                value: -2
+                            });
+
+                            keyFrames.push({
+                                frame: 2 * frameRate,
+                                value: -1
+                            });
+                        }
+
+                    ySlide.setKeys(keyFrames);
+                    createParticles(tile);
+                    return ySlide;
+        }
+
+        function defineNote(tileName, sounds){
+            if(tileName.includes("white")){
+                switch(tileName){
+                    case("whiteKey0"):
+                        return sounds[0];
+                        break;
+                    case("whiteKey1"):
+                        return sounds[2];
+                        break;
+                    case("whiteKey2"):
+                        return sounds[4];
+                        break;
+                    case("whiteKey3"):
+                        return sounds[5];
+                        break;
+                    case("whiteKey4"):
+                        return sounds[7];
+                        break;
+                    case("whiteKey5"):
+                        return sounds[9];
+                        break;
+                    case("whiteKey6"):
+                        return sounds[11];
+                        break;
+                    case("whiteKey7"):
+                        return sounds[12];
+                        break;
+                    case("whiteKey8"):
+                        return sounds[14];
+                        break;
+                    case("whiteKey9"):
+                        return sounds[16];
+                        break;
+                    case("whiteKey10"):
+                        return sounds[17];
+                        break;
+                    case("whiteKey11"):
+                        return sounds[19];
+                        break;
+                    case("whiteKey12"):
+                        return sounds[21];
+                        break;
+                    case("whiteKey13"):
+                        return sounds[23];
+                        break;
+                    case("whiteKey14"):
+                        return sounds[24];
+                        break;
+                }
+            }
+
+            if(tileName.includes("black")){
+                switch(tileName){
+                    case("blackKey0"): //do1sus
+                        return sounds[1];
+                        break;
+                    case("blackKey1"): //re1sus
+                        return sounds[3];
+                        break;
+                    case("blackKey3"): //fa1sus
+                        return sounds[6];
+                        break;
+                    case("blackKey4"): //sol1sus
+                        return sounds[8];
+                        break;
+                    case("blackKey5"): //la1sus
+                        return sounds[10];
+                        break;
+                    case("blackKey7"): //do2sus
+                        return sounds[13];
+                        break;
+                    case("blackKey8"): //re2sus
+                        return sounds[15];
+                        break;
+                    case("blackKey10"): //fa2sus
+                        return sounds[18];
+                        break;
+                    case("blackKey11"): //sol2sus
+                        return sounds[20];
+                        break;
+                    case("blackKey12"): //la2sus
+                        return sounds[22];
+                        break;
+            }
+        }
+        }
+
+        //demos de músicas
+        function demoModeNonaSinfonia(scene, sounds){
+            var speed = 150;
+            var timePassed = 0;
+
+            playTileByNoteName("mi1", scene, sounds);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("mi1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("fa1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("fa1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("mi1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("re1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("re1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("mi1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("mi1", scene, sounds) }, timePassed);
+            timePassed += 2.5*speed;
+            setTimeout(() => { playTileByNoteName("re1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re1", scene, sounds) }, timePassed);
+        }
+
+        function demoModePourElise(scene, sounds){
+            var speed = 250;
+            var timePassed = 0;
+
+            playTileByNoteName("mi2", scene, sounds);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("si1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1", scene, sounds) }, timePassed);
+
+            timePassed += 2.5*speed;
+            setTimeout(() => { playTileByNoteName("do1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("mi1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("si1", scene, sounds) }, timePassed);
+
+            timePassed += 2.5*speed;
+            setTimeout(() => { playTileByNoteName("mi1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol1sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("si1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+        }
+
+        function demoModeMario(scene, sounds){
+            var speed = 150;
+            var timePassed = 0;
+
+            playTileByNoteName("mi2", scene, sounds);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+            timePassed += 4*speed;
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+
+            timePassed += 4*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 3*speed;
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+            timePassed += 3*speed;
+            setTimeout(() => { playTileByNoteName("mi1", scene, sounds) }, timePassed);
+            timePassed += 3*speed;
+            setTimeout(() => { playTileByNoteName("la1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("si1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+            timePassed += 1*speed;
+            setTimeout(() => { playTileByNoteName("la1", scene, sounds) }, timePassed);
+
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+            timePassed += 1.66*speed;
+            setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+            timePassed += 1.66*speed;
+            setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+            timePassed += 1.66*speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += 1*speed;
+            setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 1*speed;
+            setTimeout(() => { playTileByNoteName("re2", scene, sounds) }, timePassed);
+            timePassed += 1*speed;
+            setTimeout(() => { playTileByNoteName("si1", scene, sounds) }, timePassed);
+            
+        }
+
+        function demoModeSigurRosUntitled3(scene, sounds){
+            var speed = 350;
+            var timePassed = 0;
+
+            playTileByNoteName("re2", scene, sounds);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa1", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("re2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+            timePassed += speed;        
+        }
+
+        function demoRadioheadNoSurprises(scene, sounds){
+            var speed = 400;
+            var timePassed = 0;
+
+            for(i = 0; i < 2 ; i++){
+                setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("la1sus", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("do2sus", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+                timePassed += speed;
+            }
+            
+            
+        }
+
+        function demoLAutreValseDAmelie(scene, sounds){
+            var speed = 150;
+            var timePassed = 0;
+
+            for(i = 0; i<2; i++){
+                setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+                timePassed += 6* speed;
+
+                setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+                timePassed += speed;
+                setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+                timePassed += 2*speed;
+                setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+                timePassed += 3*speed;
+                setTimeout(() => { playTileByNoteName("mi2", scene, sounds) }, timePassed);
+                timePassed += 2*speed;
+                setTimeout(() => { playTileByNoteName("re2sus", scene, sounds) }, timePassed);
+                timePassed += 6*speed;
+                setTimeout(() => { playTileByNoteName("do2sus", scene, sounds) }, timePassed);
+                timePassed += 6*speed;
+                setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+                timePassed += 6*speed;
+                setTimeout(() => { playTileByNoteName("do2sus", scene, sounds) }, timePassed);
+                timePassed += 6*speed;
+            }
+            
+        }
+
+        function demoBrasileirinho(scene, sounds){
+            var speed = 120;
+            var timePassed = 0;
+
+            playTileByNoteName("la2", scene, sounds);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol2sus", scene, sounds) }, timePassed);
+
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol2sus", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol2sus", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol2sus", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol2sus", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("la2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol2sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("sol2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2sus", scene, sounds) }, timePassed);
+            timePassed += speed;
+            setTimeout(() => { playTileByNoteName("fa2", scene, sounds) }, timePassed);
+            timePassed += speed;
+            
+        }
+
+        function demoBabyShark(scene, sounds){
+            var speed = 125;
+            var timePassed = 0;
+
+            playTileByNoteName("sol1", scene, sounds);
+            timePassed += 4*speed;
+            setTimeout(() => { playTileByNoteName("la1", scene, sounds) }, timePassed);
+            timePassed += 4*speed;
+
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 1*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 3*speed;
+
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("la1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 1*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 3*speed;
+
+            setTimeout(() => { playTileByNoteName("sol1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("la1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 1*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 3*speed;
+
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("do2", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+            setTimeout(() => { playTileByNoteName("si1", scene, sounds) }, timePassed);
+            timePassed += 2*speed;
+
+        }
+        
+        function loadSoundsToScene(scene){
+            var sounds = [];
+            var sound = new BABYLON.Sound("do1", "http://localhost:5500/assets/PianoNotes/1-do1.mp3", scene)
+            sounds.push(sound);
+            sounds.push(new BABYLON.Sound("do1sus", "http://localhost:5500/assets/PianoNotes/2-do1sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("re1", "http://localhost:5500/assets/PianoNotes/3-re1.mp3", scene));
+            sounds.push(new BABYLON.Sound("re1sus", "http://localhost:5500/assets/PianoNotes/4-re1sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("mi1", "http://localhost:5500/assets/PianoNotes/5-mi1.mp3", scene));
+            sounds.push(new BABYLON.Sound("fa1", "http://localhost:5500/assets/PianoNotes/6-fa1.mp3", scene));
+            sounds.push(new BABYLON.Sound("fa1sus", "http://localhost:5500/assets/PianoNotes/7-fa1sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("sol1", "http://localhost:5500/assets/PianoNotes/8-sol1.mp3", scene));
+            sounds.push(new BABYLON.Sound("sol1sus", "http://localhost:5500/assets/PianoNotes/9-sol1sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("la1", "http://localhost:5500/assets/PianoNotes/10-la1.mp3", scene));
+            sounds.push(new BABYLON.Sound("la1sus", "http://localhost:5500/assets/PianoNotes/11-la1sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("si1", "http://localhost:5500/assets/PianoNotes/12-si1.mp3", scene));
+            sounds.push(new BABYLON.Sound("do2", "http://localhost:5500/assets/PianoNotes/13-do2.mp3", scene));
+            sounds.push(new BABYLON.Sound("do2sus", "http://localhost:5500/assets/PianoNotes/14-do2sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("re2", "http://localhost:5500/assets/PianoNotes/15-re2.mp3", scene));
+            sounds.push(new BABYLON.Sound("re2sus", "http://localhost:5500/assets/PianoNotes/16-re2sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("mi2", "http://localhost:5500/assets/PianoNotes/17-mi2.mp3", scene));
+            sounds.push(new BABYLON.Sound("fa2", "http://localhost:5500/assets/PianoNotes/18-fa2.mp3", scene));
+            sounds.push(new BABYLON.Sound("fa2sus", "http://localhost:5500/assets/PianoNotes/19-fa2sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("sol2", "http://localhost:5500/assets/PianoNotes/20-sol2.mp3", scene));
+            sounds.push(new BABYLON.Sound("sol2sus", "http://localhost:5500/assets/PianoNotes/21-sol2sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("la2", "http://localhost:5500/assets/PianoNotes/22-la2.mp3", scene));
+            sounds.push(new BABYLON.Sound("la2sus", "http://localhost:5500/assets/PianoNotes/23-la2sus.mp3", scene));
+            sounds.push(new BABYLON.Sound("si2", "http://localhost:5500/assets/PianoNotes/24-si2.mp3", scene));
+            sounds.push(new BABYLON.Sound("do3", "http://localhost:5500/assets/PianoNotes/25-do3.mp3", scene));
+
+            return sounds;
+        }
+
+        function createBoardKeyboard(){
+            var mat = new BABYLON.StandardMaterial("mat", scene);
+            var texture = new BABYLON.Texture("assets/keyboard.webp", scene);
+
+            mat.diffuseTexture = texture;
+
+            var faceUV = new Array(6);
+
+            faceUV[0] = new BABYLON.Vector4(686/931, 273/567, 732/931, 286/567);
+            faceUV[1] = faceUV[0]
+            faceUV[2] = faceUV[0]
+            faceUV[3] = faceUV[0]
+            faceUV[4] = new BABYLON.Vector4(856/931, 529/567, 73/931, 320/567);
+            faceUV[5] = faceUV[0]
+
+            const options = {
+                width: 15,
+                height: 2.5,
+                depth: 53.1,
+                faceUV: faceUV
+            }
+            var board = BABYLON.MeshBuilder.CreateBox("board", options, scene);
+
+            board.setPositionWithLocalVector(new BABYLON.Vector3(0 , -0.25, 22.5));
+            board.rotation.y = -(Math.PI)/2;
+            board.material = mat;
+
+
+            //criar frame ao redor das teclas
+            var shape0 = [
+                        new BABYLON.Vector3(0, 0, 0),
+                        new BABYLON.Vector3(2, 0, 0),
+                        new BABYLON.Vector3(2, 0, 12),
+                        new BABYLON.Vector3(51.25, 0, 12),
+                        new BABYLON.Vector3(51.25, 0, 0),
+                        new BABYLON.Vector3(53.25, 0, 0),
+                        new BABYLON.Vector3(53.25, 0, 15),
+                        new BABYLON.Vector3(0, 0, 15)
+            ]
+
+            var faceUV2 = new Array(10);
+
+            faceUV2[0] = new BABYLON.Vector4(686/931, 273/567, 732/931, 286/567);
+            faceUV2[1] = faceUV2[0];
+            faceUV2[2] = faceUV2[0];
+            faceUV2[3] = faceUV2[0];
+            faceUV2[4] = faceUV2[0];
+            faceUV2[5] = faceUV2[0];
+            faceUV2[6] = faceUV2[0];
+            faceUV2[7] = faceUV2[0];
+            faceUV2[8] = faceUV2[0];
+            faceUV2[9] = faceUV2[0];
+
+            frameBoard = BABYLON.MeshBuilder.ExtrudePolygon("frameBoard", {shape:shape0, depth: 3.5, sideOrientation: BABYLON.Mesh.DOUBLESIDE, faceUV: faceUV2 });
+            frameBoard.setPositionWithLocalVector(new BABYLON.Vector3(-26.5 , 2, 0));
+            frameBoard.material = mat;
+
+            //texto Mini25
+            var faceUV3 = new Array(6);
+
+            faceUV3[0] = new BABYLON.Vector4(686/931, 273/567, 732/931, 286/567);
+            faceUV3[1] = faceUV3[0];
+            faceUV3[2] = faceUV3[0];
+            faceUV3[3] = faceUV3[0];
+            faceUV3[4] = new BABYLON.Vector4(755/931, 269/567, 836/931, 290/567);
+            faceUV3[5] = faceUV3[0];
+
+            const options2 = {
+                width: 2,
+                height: 0.5,
+                depth: 8,
+                faceUV: faceUV3
+            }
+            var textMini25 = BABYLON.MeshBuilder.CreateBox("mini25", options2, scene);
+
+            textMini25.setPositionWithLocalVector(new BABYLON.Vector3(18 , 1.8, 13.5));
+            textMini25.rotation.y = (Math.PI)/2;
+            textMini25.material = mat;
+            
+            //botões Demo
+            for(i = 0; i < 8; i++){
+                var faceUVbtDemo = new Array(6);
+
+                if(i < 4){
+                    var a = 476 + 98 * i;
+                    var b = 443;
+                    var c = 541 + 98 * i;
+                    var d = 509;
+
+                    var positionBtDemo = new BABYLON.Vector3(i * 6.45 + 3.2, 1, 26.1);
+                }
+                else{
+                    var a = 476 + 98 * (i - 4);
+                    var b = 443 - 93;
+                    var c = 541 + 98 * (i - 4);
+                    var d = 509 - 93;
+
+                    var positionBtDemo = new BABYLON.Vector3((i - 4) * 6.45 + 3.2, 1, 19.2);
+                }
+
+                faceUVbtDemo[4] = new BABYLON.Vector4(a/931, b/567, c/931, d/567);
+                faceUVbtDemo[0] = new BABYLON.Vector4(a/931, b/567, (a+10)/931, (b+10)/567);
+                faceUVbtDemo[1] = faceUVbtDemo[0];
+                faceUVbtDemo[2] = faceUVbtDemo[0];
+                faceUVbtDemo[3] = faceUVbtDemo[0];         
+                faceUVbtDemo[5] = faceUVbtDemo[0];
+
+                const optionsBtDemo = {
+                    width: 5.2,
+                    height: 0.5,
+                    depth: 5.2,
+                    faceUV: faceUVbtDemo
+                }
+                
+                var idBtDemo = i + 1;
+                var btDemo = BABYLON.MeshBuilder.CreateBox("btDemo" + idBtDemo, optionsBtDemo, scene);
+                btDemo.setPositionWithLocalVector(positionBtDemo);
+                btDemo.rotation.y = (Math.PI)/2;
+                btDemo.material = mat;
+            }
+
+        }
+        
+        function createParticles(tile){
+            const particleSystem = new BABYLON.ParticleSystem("particles", 2000);
+            //Texture of each particle
+            particleSystem.particleTexture = new BABYLON.Texture("assets/Flare.png");
+
+            // Position where the particles are emiited from
+            if(tile.name.includes("white")){
+                particleSystem.emitter = new BABYLON.Vector3(tile.position.x + 1.5, tile.position.y + 1, tile.position.z + 2);
+            }
+            else{
+                particleSystem.emitter = new BABYLON.Vector3(tile.position.x + 1.5, tile.position.y + 2, tile.position.z + 2);
+            }
+            
+            particleSystem.start();
+            
+            particleSystem.targetStopDuration = 0.3;
+        }
+
+        var engine;
+        var scene;
+        initFunction = async function() {
+        var asyncEngineCreation = async function() {
+            try {
+                return createDefaultEngine();
+            } catch(e) {
+                console.log("the available createEngine function failed. Creating the default engine instead");
+                return createDefaultEngine();
+                }
+            }
+
+            engine = await asyncEngineCreation();
+
+            if (!engine)
+                throw 'engine should not be null.';
+
+            scene = createScene();
+        };
+
+        initFunction().then(() => {sceneToRender = scene
+            engine.runRenderLoop(function () {
+                if (sceneToRender && sceneToRender.activeCamera) {
+                    sceneToRender.render();
+                }
+            });
+        });
+
+        // Resize
+        window.addEventListener("resize", function () {
+            engine.resize();
+        });
+    </script>
+</body>
+</html>
