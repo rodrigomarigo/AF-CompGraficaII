@@ -57,175 +57,171 @@
             camera.attachControl(canvas, true);
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
 
-            createBoardKeyboard();
 
-            for(i = 0; i < 15; i++){
-                if(i == 0 || i == 3 || i == 7 || i == 10)
-                    tiles.push(createWhiteKey(2, i));
-                else if(i == 1 || i == 4 || i == 5 || i == 8 || i == 11 || i == 12)
-                    tiles.push(createWhiteKey(3, i));
-                else if(i == 2 || i == 6 || i == 9 || i == 13)
-                    tiles.push(createWhiteKey(1, i));
-                else
-                    tiles.push(createWhiteKey(0, i));
-            }
+            //criar ground
+            //Params: name, width, depth, subdivs, scene
+            var ground = BABYLON.Mesh.CreateGround("ground1", 150, 150, 2, scene);
 
-            for(i = 0; i < 14; i++){
-                if(i != 2 && i != 6 && i != 9 && i != 13)
-                tiles.push(createBlackKeys(i));
-            }
-
-            sounds = loadSoundsToScene(scene);
+            scene.enablePhysics();
             
-            scene.onPointerDown = function (evt, pickResult) {
-                if (pickResult.hit && pickResult.pickedMesh.name.includes("Key")) {
-                    playNoteByTouch(pickResult.pickedMesh, sounds);
-                }
-                else if(pickResult.hit && pickResult.pickedMesh.name.includes("Demo")){
-                    switch(pickResult.pickedMesh.name){
-                        case "btDemo1":
-                            demoModeNonaSinfonia(scene, sounds);
-                            break;
-                        case "btDemo2":
-                            demoModePourElise(scene, sounds);
-                            break;
-                        case "btDemo3":
-                            demoModeMario(scene, sounds);
-                            break;
-                        case "btDemo4":
-                            demoModeSigurRosUntitled3(scene, sounds);
-                            break;
-                        case "btDemo5":
-                            demoRadioheadNoSurprises(scene, sounds);
-                            break;
-                        case "btDemo6":
-                            demoLAutreValseDAmelie(scene, sounds);
-                            break;
-                        case "btDemo7":
-                            demoBrasileirinho(scene, sounds);
-                            break;
-                        case "btDemo8":
-                            demoBabyShark(scene, sounds);
-                            break;
-                        default:
-                            break;
-                            
-                    }
-                }
-            };
+            ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, restitution: 0.5 }, scene);
+            
+            //1 - Blocos crescentes
+            // growingBlocksFalling(scene);
 
+            //2 - Blocos do mesmo tamanho
+            // sameSizeBlocksFaling(scene);
+
+            //3 - Blocos do mesmo tamanho rotacionando
+            // sameSizeBlocksRotatedFalling(scene);
+
+            //4 - bola em linha reta
+            spawnBall(scene, new BABYLON.Vector3(4, 150, 20));
+            //pendulo
+            
+            //5 - rampa com bola
+            ramp(scene, new BABYLON.Vector3(0, 55, -28), Math.PI/8);
+            ramp(scene, new BABYLON.Vector3(0, 60, 5), -Math.PI/8);
+            ramp(scene, new BABYLON.Vector3(0, 120, -20), Math.PI/8);
+            // ramp(scene, new BABYLON.Vector3(0, 30, -20), Math.PI/8);
+
+            //bola em linha reta
+            //bola que quica
+            //beixiga explode
+            //
+            
             return scene;
         }
 
-        
-        function playTileByNoteName(noteName, tiles, sounds){
-            //pegar mesh da nota específica dentro de tiles
-            var meshName = pickNoteByName(noteName);
-            
-            var meshToPlay = scene.getMeshByName(meshName);
-
-            //som
-            var note = defineNote(meshToPlay.name, sounds);
-            note.play();
-
-            //animação
-            var framerate = 10;
-            var ySlide = animateTile(meshToPlay);
-            scene.beginDirectAnimation(meshToPlay, [ySlide], 0, 2 * framerate, false, 10)   
-        }
-
-        function playNoteByTouch(noteMesh, sounds){
-            //som
-            var note = defineNote(noteMesh.name, sounds);
-            note.play();
-            
-            //animação
-            var framerate = 10;
-            var ySlide = animateTile(noteMesh);
-
-            scene.beginDirectAnimation(noteMesh, [ySlide], 0, 2 * framerate, false, 10)    
-        }
-        
-        function pickNoteByName(nameNote){
-            switch(nameNote){
-                case "do1":
-                    return "whiteKey0";
-                    break;
-                case "do1sus":
-                    return "blackKey0";
-                    break;
-                case "re1":
-                    return "whiteKey1";
-                    break;
-                case "re1sus":
-                    return "blackKey1";
-                    break;
-                case "mi1":
-                    return "whiteKey2";
-                    break;
-                case "fa1":
-                    return "whiteKey3";
-                    break;
-                case "fa1sus":
-                    return "blackKey3";
-                    break;
-                case "sol1":
-                    return "whiteKey4";
-                    break;
-                case "sol1sus":
-                    return "blackKey4";
-                    break;
-                case "la1":
-                    return "whiteKey5";
-                    break;
-                case "la1sus":
-                    return "blackKey5";
-                    break;
-                case "si1":
-                    return "whiteKey6";
-                    break;
-                case "do2":
-                    return "whiteKey7";
-                    break;
-                case "do2sus":
-                    return "blackKey7";
-                    break;
-                case "re2":
-                    return "whiteKey8";
-                    break;
-                case "re2sus":
-                    return "blackKey8";
-                    break;
-                case "mi2":
-                    return "whiteKey9";
-                    break;
-                case "fa2":
-                    return "whiteKey10";
-                    break;
-                case "fa2sus":
-                    return "blackKey10";
-                    break;
-                case "sol2":
-                    return "whiteKey11";
-                    break;
-                case "sol2sus":
-                    return "blackKey11";
-                    break;
-                case "la2":
-                    return "whiteKey12";
-                    break;
-                case "la2sus":
-                    return "blackKey12";
-                    break;
-                case "si2":
-                    return "whiteKey13";
-                    break;
-                case "do3":
-                    return "whiteKey14";
-                    break;
+        function growingBlocksFalling(scene){
+            //declarar array de blocos
+            var arrayBlocks = [];
+            for(i = 0; i < 10; i++){
+                var block = BABYLON.MeshBuilder.CreateBox("growingBlock" + i, {height: 3 + i, width: 0.75 + i, depth: 0.25});
+                arrayBlocks.push(block);
             }
+
+            // material rosa
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
+
+            // definir rotação do menor bloco para cair
+            arrayBlocks[0].rotation = new BABYLON.Vector3(60, 0, 0);
+            i = 0;
+
+            // definir posição, material e física dos blocos
+            arrayBlocks.forEach(block => {
+                block.position.z += 2 * i;
+                block.position.y += 1.5 + i/2;
+                block.material = myMaterial;
+                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1, restitution: 0.5 }, scene);
+                i++;
+            });         
         }
 
+        function sameSizeBlocksFaling(scene){
+            //declarar array de blocos
+            var arrayBlocks = [];
+            for(i = 0; i < 50; i++){
+                var block = BABYLON.MeshBuilder.CreateBox("sameBlock" + i, {height: 2, width: 0.75, depth: 0.1});
+                arrayBlocks.push(block);
+            }
+
+            // material rosa
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
+
+            // definir rotação do menor bloco para cair
+            arrayBlocks[0].rotation = new BABYLON.Vector3(70, 0, 0);
+            i = 0;
+
+            // definir posição, material e física dos blocos
+            arrayBlocks.forEach(block => {
+                block.position.z += i;
+                block.position.y += 1;
+                block.material = myMaterial;
+                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 450, restitution: 0.5 }, scene);
+                i++;
+            });
+        }
+        
+        function sameSizeBlocksRotatedFalling(scene){
+            //declarar array de blocos
+            qtdBlocks = 100;
+            var arrayBlocks = [];
+            for(i = 0; i < qtdBlocks; i++){
+                var block = BABYLON.MeshBuilder.CreateBox("sameBlock" + i, {height: 2, width: 0.75, depth: 0.1});
+                arrayBlocks.push(block);
+            }
+
+            // material rosa
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
+
+            // definir rotação do menor bloco para cair
+            arrayBlocks[0].rotation = new BABYLON.Vector3(70, 0, 0);
+            i = 0;
+
+            // definir posição, material e física dos blocos
+            arrayBlocks.forEach(block => {
+                block.position.z += 5 * (Math.sin(i * (Math.PI) / (qtdBlocks/2)));
+                block.position.y += 1;
+                block.position.x += 5 * (Math.cos(i * (Math.PI) / (qtdBlocks/2))) + (qtdBlocks/25 * i / qtdBlocks);
+
+                block.rotation = new BABYLON.Vector3(0, -i * (2 * Math.PI)/ qtdBlocks,  0);
+                
+                if(i==0)
+                    block.rotation = new BABYLON.Vector3(0.15, 0, 0);    
+                
+                block.material = myMaterial;
+                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 450, restitution: 0.5 }, scene);
+                
+                i++;
+            });
+        }
+
+        function ramp(scene, positionRamp, rotationRamp){
+            thickness = 1;
+            ballSize = 5;
+
+            var shape0 = [
+                        new BABYLON.Vector3(0, 0, 0),
+                        new BABYLON.Vector3(2 * thickness + ballSize, 0, 0),
+                        new BABYLON.Vector3(2 * thickness + ballSize, 0, (2 * thickness + ballSize)/2),
+                        new BABYLON.Vector3(thickness + ballSize, 0, (2 * thickness + ballSize)/2),
+                        new BABYLON.Vector3(thickness + ballSize, 0, thickness),
+                        new BABYLON.Vector3(thickness, 0, thickness),
+                        new BABYLON.Vector3(thickness, 0, (2 * thickness + ballSize)/2),
+                        new BABYLON.Vector3(0, 0, (2 * thickness + ballSize)/2)
+
+                    ];
+
+            // material rosa
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
+            
+            rampObj = BABYLON.MeshBuilder.ExtrudePolygon("ramp", {shape:shape0, depth: 15 * ballSize, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+            rampObj.material = myMaterial;
+            rampObj.position.y += positionRamp.y; //30;
+            rampObj.position.z += positionRamp.z; //-20;
+            rampObj.position.x += positionRamp.x;
+            // rampObj.position.z += thickness;
+            rampObj.rotation = new BABYLON.Vector3(-Math.PI/2 + rotationRamp, 0, 0); //positionRamp = Math.PI/8
+
+            rampObj.physicsImpostor = new BABYLON.PhysicsImpostor(rampObj, BABYLON.PhysicsImpostor.MeshImpostor,{mass:0, friction:1},scene);
+        }
+
+        function spawnBall(scene, posicaoBola){
+            ballSize = 2;
+            var ball = BABYLON.Mesh.CreateSphere("ball", 16, ballSize, scene);
+            
+            ball.position.y += posicaoBola.y;
+            ball.position.z += posicaoBola.z;
+            ball.position.x += posicaoBola.x;
+            
+            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 1, restitution: 0, friction:0.5 }, scene);
+        }
+      
         function createWhiteKey(typeOfKey, keyId){
             var key;
             switch(typeOfKey){
