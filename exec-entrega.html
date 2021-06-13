@@ -59,37 +59,47 @@
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
 
 
-            //criar ground
+            // Criar ground
             //Params: name, width, depth, subdivs, scene
-            var ground = BABYLON.Mesh.CreateGround("ground1", 500, 500, 2, scene);
+            var groundFloor = BABYLON.Mesh.CreateGround("groundFloor", 100, 100, 2, scene);
+            
+            var groundSeesaw = BABYLON.Mesh.CreateGround("groundSeesaw", 100, 30, 2, scene);
+            groundSeesaw.position.y += 30;
+            groundSeesaw.position.z += -25;
+
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.ambientTexture  = new BABYLON.Texture("assets/woodtiles.jpg", scene);
+            groundFloor.material = myMaterial;
+            groundSeesaw.material = myMaterial;
 
             scene.enablePhysics();
             
-            ground.physicsImpostor = new BABYLON.PhysicsImpostor(ground, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, restitution: 0.5 }, scene);
+            groundFloor.physicsImpostor = new BABYLON.PhysicsImpostor(groundFloor, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, restitution: 0.5 }, scene);
+            groundSeesaw.physicsImpostor = new BABYLON.PhysicsImpostor(groundSeesaw, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 0, restitution: 0.5 }, scene);
 
             showWorldAxis(10);
             
             //1 - Blocos crescentes
-            // growingBlocks(scene, new BABYLON.Vector3(50, 0, 15), 2, 15, "gb1", true); //scene, position, size, qtt, name, drop
+            growingBlocks(scene, new BABYLON.Vector3(47, 30, -20), -Math.PI/2, 0, 10, "gb1", false); //scene, position, size, qtt, name, drop
 
             //2 - Blocos do mesmo tamanho
-            sameSizeBlocks(scene, new BABYLON.Vector3(10, 0, 15), 2, 100, "ssb", true);
+            sameSizeBlocks(scene, new BABYLON.Vector3(12, 0, 0), Math.PI/2, 1, 15, "ssb", false);
 
             //3 - Blocos do mesmo tamanho rotacionando
-            // sameSizeBlocksRotatedFalling(scene);
+            sameSizeBlocksRotatedFalling(scene, new BABYLON.Vector3(10, 0, 5), 0, 30, 3/2 * Math.PI, 5, "rttb", false);
             
             //4 - rampas com bola pequena
-            // spawnBall(scene, new BABYLON.Vector3(4, 150, 20));
-            // ramp(scene, new BABYLON.Vector3(0, 55, -28), Math.PI/8);
-            // ramp(scene, new BABYLON.Vector3(0, 60, 5), -Math.PI/8);
-            // ramp(scene, new BABYLON.Vector3(0, 120, -20), Math.PI/8);
+            spawnHeavyBall(scene, new BABYLON.Vector3(15, 35, -8), 0.8);
+            spawnRamp(scene, new BABYLON.Vector3(14, 10, -15), Math.PI/8, 0.25, 1, "1");
+            spawnRamp(scene, new BABYLON.Vector3(14, 15, 0), -Math.PI/8, 0.25, 1, "2");
+            spawnRamp(scene, new BABYLON.Vector3(14, 30, -10), Math.PI/8, 0.25, 1, "3");
 
             // 5 - Pendulo
-            // spawnPendulum(scene);
+            spawnPendulum(scene, new BABYLON.Vector3(48, 32, -20), 0);
             
             // 6 - Gangorra
-            // spawnSeesaw(scene);
-            // spawnBall(scene, new BABYLON.Vector3(10, 30, 0));
+            spawnSeesaw(scene, new BABYLON.Vector3(5, 31, -20), 0);
+
 
             // 7 - Mobile
             // spawnMobile(scene);
@@ -100,12 +110,12 @@
             //bola em linha reta
             //bola que quica
             //beixiga explode
-            //
+            //bolas que colidem
             
             return scene;
         }
 
-        function growingBlocks(scene, positionOnScene, sizeBlocks, quantityBlocks, name, drop){
+        function growingBlocks(scene, positionOnScene, rotationOnScene, sizeBlocks, quantityBlocks, name, drop){
             //declarar array de blocos
             var arrayBlocks = [];
 
@@ -126,21 +136,71 @@
 
             // definir posição, material e física dos blocos
             arrayBlocks.forEach(block => {
-                block.position.z += 2 * i + positionOnScene.z;
-                block.position.y += 1.5 + i/2 + sizeBlocks/2 + positionOnScene.y;
-                block.position.x += positionOnScene.x;
+                block.position.z += 2 * i;
+                block.position.y += 1.5 + i/2 + sizeBlocks/2;
+                // block.position.x += positionOnScene.x;
                 block.material = myMaterial;
-                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1, restitution: 0.5 }, scene);
+                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1 + i, restitution: 0.5 }, scene);
                 i++;
-            });         
+            });
+            
+            var groupedBlocks = new BABYLON.TransformNode();
+            arrayBlocks.forEach(mesh => {
+                mesh.parent = groupedBlocks
+            })
+            groupedBlocks.rotation.y += rotationOnScene;
+            
+            groupedBlocks.position.x += positionOnScene.x;
+            groupedBlocks.position.y += positionOnScene.y;
+            groupedBlocks.position.z += positionOnScene.z;
         }
 
-        function sameSizeBlocks(scene, positionOnScene, sizeBlocks, quantityBlocks, name, drop){
+        function sameSizeBlocks(scene, positionOnScene, rotationOnScene, sizeBlocks, quantityBlocks, name, drop){
             //declarar array de blocos
             var arrayBlocks = [];
             for(i = 0; i < quantityBlocks; i++){
                 var block = BABYLON.MeshBuilder.CreateBox("sameBlock" + name + i,   
                     {height: 2 + sizeBlocks, width: 0.75 + sizeBlocks * 0.375, depth: 0.1 + 0.05 * sizeBlocks});
+                arrayBlocks.push(block);
+            }
+
+            // material rosa
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.ambientTexture  = new BABYLON.Texture("assets/marbleTexture.jpg", scene);
+            // myMaterial.diffuseColor = new BABYLON.Color3(0.5, 1, 1);
+
+            // definir rotação do menor bloco para cair
+            if(drop)
+                arrayBlocks[0].rotation = new BABYLON.Vector3(85, 0, 0);
+            i = 0;
+
+            // definir posição, material e física dos blocos
+            arrayBlocks.forEach(block => {
+                block.position.z += i;
+                block.position.y += 1 + sizeBlocks/2;
+                block.material = myMaterial;
+                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 2, restitution: 0.5 }, scene);
+                i++;
+            });
+
+            // Agrupar para poder rotacionar 
+            var groupedBlocks = new BABYLON.TransformNode();
+            arrayBlocks.forEach(mesh => {
+                mesh.parent = groupedBlocks
+            })
+            groupedBlocks.rotation.y += rotationOnScene;
+            
+            groupedBlocks.position.x += positionOnScene.x;
+            groupedBlocks.position.y += positionOnScene.y;
+            groupedBlocks.position.z += positionOnScene.z;
+        }
+        
+        function sameSizeBlocksRotatedFalling(scene, positionOnScene, sizeBlocks, quantityBlocks, sizeRotation, radius, name, drop){
+            //declarar array de blocos
+            var arrayBlocks = [];
+            for(i = 0; i < quantityBlocks; i++){
+                var block = BABYLON.MeshBuilder.CreateBox("rotatingBlock" + name + i, 
+                {height: 2.5 + sizeBlocks, width: 0.75 + sizeBlocks * 0.375, depth: 0.2 + 0.1 * sizeBlocks});
                 arrayBlocks.push(block);
             }
 
@@ -155,54 +215,23 @@
 
             // definir posição, material e física dos blocos
             arrayBlocks.forEach(block => {
-                block.position.z += i + positionOnScene.z;
-                block.position.y += 1 + sizeBlocks/2 + positionOnScene.y;
-                block.position.x += positionOnScene.x;
-                block.material = myMaterial;
-                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 2, restitution: 0.5 }, scene);
-                i++;
-            });
-        }
-        
-        function sameSizeBlocksRotatedFalling(scene){
-            //declarar array de blocos
-            qtdBlocks = 100;
-            var arrayBlocks = [];
-            for(i = 0; i < qtdBlocks; i++){
-                var block = BABYLON.MeshBuilder.CreateBox("sameBlock" + i, {height: 2, width: 0.75, depth: 0.1});
-                arrayBlocks.push(block);
-            }
+                block.position.z += radius * (Math.sin(i * (sizeRotation/2) / (quantityBlocks/2))) + positionOnScene.z;
+                block.position.y += 1.25 + positionOnScene.y;
+                block.position.x += radius * (Math.cos(i * (sizeRotation/2) / (quantityBlocks/2))) + (quantityBlocks/25 * i / quantityBlocks) + positionOnScene.x;
 
-            // material rosa
-            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
-            myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
-
-            // definir rotação do menor bloco para cair
-            arrayBlocks[0].rotation = new BABYLON.Vector3(70, 0, 0);
-            i = 0;
-
-            // definir posição, material e física dos blocos
-            arrayBlocks.forEach(block => {
-                block.position.z += 5 * (Math.sin(i * (Math.PI) / (qtdBlocks/2)));
-                block.position.y += 1;
-                block.position.x += 5 * (Math.cos(i * (Math.PI) / (qtdBlocks/2))) + (qtdBlocks/25 * i / qtdBlocks);
-
-                block.rotation = new BABYLON.Vector3(0, -i * (2 * Math.PI)/ qtdBlocks,  0);
+                block.rotation = new BABYLON.Vector3(0, -i * (sizeRotation)/ quantityBlocks,  0);
                 
-                if(i==0)
+                if(i==0 && drop)
                     block.rotation = new BABYLON.Vector3(0.15, 0, 0);    
                 
                 block.material = myMaterial;
-                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 450, restitution: 0.5 }, scene);
+                block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 2, restitution: 0.5 }, scene);
                 
                 i++;
             });
         }
 
-        function ramp(scene, rampPosition, rotationRamp){
-            thickness = 1;
-            ballSize = 5;
-
+        function spawnRamp(scene, rampPosition, rampRotation, thickness, ballSize, name){
             var shape0 = [
                         new BABYLON.Vector3(0, 0, 0),
                         new BABYLON.Vector3(2 * thickness + ballSize, 0, 0),
@@ -212,32 +241,36 @@
                         new BABYLON.Vector3(thickness, 0, thickness),
                         new BABYLON.Vector3(thickness, 0, (2 * thickness + ballSize)/2),
                         new BABYLON.Vector3(0, 0, (2 * thickness + ballSize)/2)
-
                     ];
 
             // material rosa
             var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
-            myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
+            myMaterial.ambientTexture  = new BABYLON.Texture("assets/lightWoodTexture.jpg", scene);
+            // myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
             
-            rampObj = BABYLON.MeshBuilder.ExtrudePolygon("ramp", {shape:shape0, depth: 15 * ballSize, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
+            rampObj = BABYLON.MeshBuilder.ExtrudePolygon("ramp" + name, {shape:shape0, depth: 15 * ballSize, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
             rampObj.material = myMaterial;
             rampObj.position.y += rampPosition.y; //30;
             rampObj.position.z += rampPosition.z; //-20;
             rampObj.position.x += rampPosition.x;
             // rampObj.position.z += thickness;
-            rampObj.rotation = new BABYLON.Vector3(-Math.PI/2 + rotationRamp, 0, 0); //rampPosition = Math.PI/8
+            rampObj.rotation = new BABYLON.Vector3(-Math.PI/2 + rampRotation, 0, 0); //rampPosition = Math.PI/8
 
             rampObj.physicsImpostor = new BABYLON.PhysicsImpostor(rampObj, BABYLON.PhysicsImpostor.MeshImpostor,{mass:0, friction:1},scene);
         }
 
         function spawnHeavyBall(scene, ballPosition, ballSize){
-            var ball = BABYLON.Mesh.CreateSphere("ball", 16,ballSize, scene);
+            var ball = BABYLON.Mesh.CreateSphere("ball", 16, ballSize, scene);
+
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.ambientTexture  = new BABYLON.Texture("assets/glassTexture.jpg", scene);
+            ball.material = myMaterial;
             
             ball.position.y += ballPosition.y;
             ball.position.z += ballPosition.z;
             ball.position.x += ballPosition.x;
             
-            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 1, restitution: 0, friction:0.5 }, scene);
+            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 5, restitution: 0, friction:0.5 }, scene);
         }
 
         function spawnLightBall(scene, ballPosition, ballSize){
@@ -247,10 +280,10 @@
             ball.position.z += ballPosition.z;
             ball.position.x += ballPosition.x;
             
-            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 1, restitution: 0, friction:0.5 }, scene);
+            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 1, restitution: 3, friction:0.5 }, scene);
         }
 
-        function spawnPendulum(scene){
+        function spawnPendulum(scene, positionOnScene, rotationOnScene){
             //Pivot
             var pivot = BABYLON.MeshBuilder.CreateCylinder("pivot", {diameter:0.5, height: 0.1}, scene);
             pivot.rotation = new BABYLON.Vector3(Math.PI/2, 0, 0);
@@ -278,7 +311,7 @@
             // Physics
             scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
 
-            mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1 }, scene);
+            mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 5, restitution: 0, friction:0.5 }, scene);
             pivot.physicsImpostor = new BABYLON.PhysicsImpostor(pivot, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 0}, scene);
             
             //Joint
@@ -292,9 +325,18 @@
             }); 
 
             pivot.physicsImpostor.addJoint(mesh.physicsImpostor, joint1);    
+
+            var groupedMeshes = new BABYLON.TransformNode();
+            pivot.parent = groupedMeshes;
+            mesh.parent = groupedMeshes;
+            groupedMeshes.rotation.y += rotationOnScene;
+            
+            groupedMeshes.position.x += positionOnScene.x;
+            groupedMeshes.position.y += positionOnScene.y;
+            groupedMeshes.position.z += positionOnScene.z;
         }
 
-        function spawnSeesaw(scene){
+        function spawnSeesaw(scene, positionOnScene, rotationOnScene){
             //Pivot
             var pivot = BABYLON.MeshBuilder.CreateCylinder("pivot", {diameter:4, height: 4}, scene);
             pivot.rotation = new BABYLON.Vector3(Math.PI/2, 0, 0);
@@ -309,11 +351,9 @@
             blueMat.diffuseColor = new BABYLON.Color3.Blue();
             box.material = blueMat;
 
-            pivot.position.y += 2;
-            box.position.y += 2;
+            pivot.position.y += 1;
+            box.position.y += 1;
 
-            
-            
             // Physics
             scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
 
@@ -331,6 +371,15 @@
             }); 
 
             pivot.physicsImpostor.addJoint(box.physicsImpostor, joint1);
+
+            var groupedMeshes = new BABYLON.TransformNode();
+            pivot.parent = groupedMeshes;
+            box.parent = groupedMeshes;
+            groupedMeshes.rotation.y += rotationOnScene;
+            
+            groupedMeshes.position.x += positionOnScene.x;
+            groupedMeshes.position.y += positionOnScene.y;
+            groupedMeshes.position.z += positionOnScene.z;
         }
       
         function spawnMobile(scene){   
@@ -404,10 +453,7 @@
             var zChar = makeTextPlane("Z", "blue", size / 10);
             zChar.position = new BABYLON.Vector3(0, 0.05 * size, 0.9 * size);
         };
-        
-        
-        
-        
+          
         //_________________________________________________________________
         function createWhiteKey(typeOfKey, keyId){
             var key;
