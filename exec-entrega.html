@@ -62,7 +62,6 @@
             //criar ground
             //Params: name, width, depth, subdivs, scene
             var ground = BABYLON.Mesh.CreateGround("ground1", 500, 500, 2, scene);
-            ground.position.y += -10;
 
             scene.enablePhysics();
             
@@ -85,10 +84,12 @@
             // ramp(scene, new BABYLON.Vector3(0, 60, 5), -Math.PI/8);
             // ramp(scene, new BABYLON.Vector3(0, 120, -20), Math.PI/8);
 
-            // 5 - pendulo
-            spawnPendulum(scene);
-            //gangorra
-
+            // 5 - Pendulo
+            // spawnPendulum(scene);
+            
+            // 6 - Gangorra
+            spawnSeesaw(scene);
+            spawnBall(scene, new BABYLON.Vector3(10, 30, 0));
 
             // rampa com bola grande
             //bola em linha reta
@@ -229,14 +230,14 @@
         }
 
         function spawnPendulum(scene){
-             // Pivot
+            //Pivot
             var pivot = BABYLON.MeshBuilder.CreateCylinder("pivot", {diameter:0.5, height: 0.1}, scene);
             pivot.rotation = new BABYLON.Vector3(Math.PI/2, 0, 0);
             var greenMat = new BABYLON.StandardMaterial("green", scene);
             greenMat.diffuseColor = new BABYLON.Color3.Green();
             pivot.material = greenMat;
             
-            //corda
+            //Corda
             var box = BABYLON.MeshBuilder.CreateBox("Box", {height: 0.1, width:8, depth:0.1}, scene);
             box.position = new BABYLON.Vector3(3, 0, 0);
             var blueMat = new BABYLON.StandardMaterial("blue", scene);
@@ -252,19 +253,14 @@
             ball.position.y += 5;
 
             var mesh = BABYLON.Mesh.MergeMeshes([box, ball]);
-            // mesh.position.y += 10;
-            // mesh.rotation = BABYLON.Vector3(0, 0, Math.PI/2);
 
             // Physics
             scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
-            
-            // Add Imposters
+
             mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1 }, scene);
-            // box.physicsImpostor = new BABYLON.PhysicsImpostor(box, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 2 }, scene);
             pivot.physicsImpostor = new BABYLON.PhysicsImpostor(pivot, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 0}, scene);
-            // ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 2 }, scene);
             
-            //Add Joint
+            //Joint
             var joint1 = new BABYLON.PhysicsJoint(BABYLON.PhysicsJoint.HingeJoint, {  
                 mainPivot: new BABYLON.Vector3(0, 0, 0),
                 connectedPivot: new BABYLON.Vector3(-4.75, 0, 0),
@@ -274,11 +270,45 @@
                 }
             }); 
 
-            //Add Joint
-            // var joint2 = new BABYLON.PhysicsJoint(BABYLON.PhysicsJoint.LockJoint, {}); 
-
-            // box.physicsImpostor.addJoint(ball.physicsImpostor, joint2); 
             pivot.physicsImpostor.addJoint(mesh.physicsImpostor, joint1);    
+        }
+
+        function spawnSeesaw(scene){
+            //Pivot
+            var pivot = BABYLON.MeshBuilder.CreateCylinder("pivot", {diameter:4, height: 4}, scene);
+            pivot.rotation = new BABYLON.Vector3(Math.PI/2, 0, 0);
+            var greenMat = new BABYLON.StandardMaterial("green", scene);
+            greenMat.diffuseColor = new BABYLON.Color3.Green();
+            pivot.material = greenMat;
+            
+            //Corda
+            var box = BABYLON.MeshBuilder.CreateBox("Box", {height: 1, width:35, depth:4}, scene);
+            box.position = new BABYLON.Vector3(3, 0, 0);
+            var blueMat = new BABYLON.StandardMaterial("blue", scene);
+            blueMat.diffuseColor = new BABYLON.Color3.Blue();
+            box.material = blueMat;
+
+            pivot.position.y += 2;
+            box.position.y += 2;
+            // box.position.x += 5;
+            
+            // Physics
+            scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
+
+            box.physicsImpostor = new BABYLON.PhysicsImpostor(box, BABYLON.PhysicsImpostor.BoxImpostor, {  mass: 1, restitution: 1, friction:0.5  }, scene);
+            pivot.physicsImpostor = new BABYLON.PhysicsImpostor(pivot, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 0}, scene);
+            
+            //Joint
+            var joint1 = new BABYLON.PhysicsJoint(BABYLON.PhysicsJoint.HingeJoint, {  
+                mainPivot: new BABYLON.Vector3(0, 0, 0),
+                connectedPivot: new BABYLON.Vector3(0, -2.5, 0),
+                mainAxis: new BABYLON.Vector3(0, 0, 1),
+                connectedAxis: new BABYLON.Vector3(0, 0, 0),
+                nativeParams: {
+                }
+            }); 
+
+            pivot.physicsImpostor.addJoint(box.physicsImpostor, joint1);
         }
       
         function showWorldAxis(size) {
