@@ -58,6 +58,18 @@
             camera.attachControl(canvas, true);
             const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(1, 1, 0));
 
+            // //plano para controle de exibição
+            var killPlane = BABYLON.Mesh.CreatePlane("killPlane", 2000, scene);
+            killPlane.position = new BABYLON.Vector3(0, -10, 0);
+            killPlane.rotation.x = Math.PI/2;
+            killPlane.visibility = 0;
+
+            //visualizar plano de controle, se necessário
+            // var matPlan = new BABYLON.StandardMaterial("matPlan1", scene);
+            // matPlan.backFaceCulling = false;
+            // matPlan.emissiveColor = new BABYLON.Color3(0.2, 1, 0.2);
+            // killPlane.material = matPlan;
+
             // Grounds
             //Parametros: name, width, depth, subdivs, scene
             var groundFloor = BABYLON.Mesh.CreateGround("groundFloor", 100, 100, 2, scene);
@@ -78,6 +90,7 @@
 
             //Mostra eixo - função auxiliar
             showWorldAxis(10);
+
 
             //Pendulo
             spawnPendulum(scene, new BABYLON.Vector3(48, 32, -35), 0, "pendulum1");
@@ -131,29 +144,27 @@
             sameSizeBlocks(scene, new BABYLON.Vector3(2, 0, 2.4), Math.PI/2, 1, 3, "ssb", false);
 
             //cilindro piso inferior
-            spawnCylinder(scene,new BABYLON.Vector3(8.5, 10, 0), 0, 40, 3, "cilinder");
+            spawnCylinder(scene,new BABYLON.Vector3(7, 2, 0), 0, 50, 1.5, "cylinder");
 
             //Blocos crescente piso inferior
             growingBlocks(scene, new BABYLON.Vector3(20, 0, 20), Math.PI/2, 0, 10, "gb1", false); //scene, position, size, qtt, name, drop
             growingBlocks(scene, new BABYLON.Vector3(20, 0, -20), Math.PI/2, 0, 10, "gb1", false);
 
-            // 7 - Mobile
-            // spawnMobile(scene);
-            // ramp(scene, new BABYLON.Vector3(0, 35, -100), Math.PI/8);
-            // spawnBall(scene, new BABYLON.Vector3(5, 30, -30), 10);
+            //Botões vermelhos
+            spawnButton(scene,new BABYLON.Vector3(45, 3, 20), 0, 0, 1.5, "button1");
+            spawnButton(scene,new BABYLON.Vector3(45, 3, -20), 0, 0, 1.5, "button2");
 
             // rampa com bola grande
             //bola em linha reta
             //bola que quica
             //beixiga explode
             //bolas que colidem
-            
-            
+        
             return scene;
         }
 
         function growingBlocks(scene, positionOnScene, rotationOnScene, sizeBlocks, quantityBlocks, name, drop){
-            //declarar array de blocos
+            // Declarar array de blocos, para facilitar controle dentro da função
             var arrayBlocks = [];
 
             for(i = 0; i < quantityBlocks; i++){
@@ -162,26 +173,45 @@
                 arrayBlocks.push(block);
             }
 
-            // material rosa
-            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
-            myMaterial.ambientTexture  = new BABYLON.Texture("assets/darkWoodTexture.jpg", scene);
-            // myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
+            // Material dos blocos
+            var growingBlockMaterial = new BABYLON.StandardMaterial("growingBlockMaterial", scene);
+            growingBlockMaterial.ambientTexture  = new BABYLON.Texture("assets/darkWoodTexture.jpg", scene);
 
-            // definir rotação do menor bloco para cair
+            // Definir rotação do menor bloco para cair, caso desejado na função (facilitar testes)
             if(drop)
                 arrayBlocks[0].rotation = new BABYLON.Vector3(60, 0, 0);
-            i = 0;
 
-            // definir posição, material e física dos blocos
+            // Considerar o kilPlane para definir as funções de interação com ele
+            var killPlane = scene.getMeshByName("killPlane");
+
+            // Definir posição, material, física e eventos dos blocos 
+            i = 0;
             arrayBlocks.forEach(block => {
+                // Posição relativa dos blocos entre eles
                 block.position.z += 2 * i;
                 block.position.y += 1.5 + i/2 + sizeBlocks/2;
-                // block.position.x += positionOnScene.x;
-                block.material = myMaterial;
+
+                block.material = growingBlockMaterial;
+                
                 block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1 + i, restitution: 0.5 }, scene);
+                
+                // Eventos dos blocos
+                block.actionManager = new BABYLON.ActionManager(scene);
+                block.actionManager.registerAction(
+                    // Eliminar o bloco quando colidir com killPlane
+                    new BABYLON.ExecuteCodeAction(
+                        {
+                            trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                            parameter:killPlane
+                        }, 
+                        function(){
+                            block.dispose();
+                        }
+                ));
                 i++;
             });
             
+            // Agrupar blocos para controlar posicionamento do sistema na cena
             var groupedBlocks = new BABYLON.TransformNode();
             arrayBlocks.forEach(mesh => {
                 mesh.parent = groupedBlocks
@@ -194,7 +224,7 @@
         }
 
         function sameSizeBlocks(scene, positionOnScene, rotationOnScene, sizeBlocks, quantityBlocks, name, drop){
-            //declarar array de blocos
+            // Blocos em array
             var arrayBlocks = [];
             for(i = 0; i < quantityBlocks; i++){
                 var block = BABYLON.MeshBuilder.CreateBox("sameBlock" + name + i,   
@@ -202,29 +232,49 @@
                 arrayBlocks.push(block);
             }
 
-            // material
-            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
-            myMaterial.ambientTexture  = new BABYLON.Texture("assets/marbleTexture.jpg", scene);
+            // Material
+            var sameBlockMaterial = new BABYLON.StandardMaterial("sameBlockMaterial", scene);
+            sameBlockMaterial.ambientTexture  = new BABYLON.Texture("assets/marbleTexture.jpg", scene);
 
-            // definir rotação do menor bloco para cair
+            // KillPlane
+            var killPlane = scene.getMeshByName("killPlane");
+
+            // Rotação do primeiro bloco para cair, caso necessário
             if(drop)
                 arrayBlocks[0].rotation = new BABYLON.Vector3(85, 0, 0);
             i = 0;
 
-            // definir posição, material e física dos blocos
+            // Posição relativa, material, física e eventos dos blocos
             arrayBlocks.forEach(block => {
                 block.position.z += i;
                 block.position.y += 1 + sizeBlocks/2;
-                block.material = myMaterial;
+                
+                block.material = sameBlockMaterial;
+                
                 block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 10, restitution: 0.5 }, scene);
+
+                block.actionManager = new BABYLON.ActionManager(scene);
+                block.actionManager.registerAction(
+                    // Eliminar o bloco quando colidir com killPlane
+                    new BABYLON.ExecuteCodeAction(
+                        {
+                            trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                            parameter:killPlane
+                        }, 
+                        function(){
+                            block.dispose();
+                        }
+                ));
+
                 i++;
             });
 
-            // Agrupar para poder rotacionar 
+            // Agrupar para posicionar na cena
             var groupedBlocks = new BABYLON.TransformNode();
             arrayBlocks.forEach(mesh => {
                 mesh.parent = groupedBlocks
             })
+
             groupedBlocks.rotation.y += rotationOnScene;
             
             groupedBlocks.position.x += positionOnScene.x;
@@ -233,7 +283,7 @@
         }
         
         function sameSizeBlocksRotatedFalling(scene, positionOnScene, sizeBlocks, quantityBlocks, sizeRotation, radius, name, drop){
-            //declarar array de blocos
+            //Blocos em array
             var arrayBlocks = [];
             for(i = 0; i < quantityBlocks; i++){
                 var block = BABYLON.MeshBuilder.CreateBox("rotatingBlock" + name + i, 
@@ -241,34 +291,52 @@
                 arrayBlocks.push(block);
             }
 
-            // material rosa
-            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
-            myMaterial.ambientTexture  = new BABYLON.Texture("assets/marbleTexture.jpg", scene);
+            // KillPlane
+            var killPlane = scene.getMeshByName("killPlane");
 
-            // definir rotação do menor bloco para cair
+            // Material
+            var rotatingBlockMaterial = new BABYLON.StandardMaterial("rotatingBlockMaterial", scene);
+            rotatingBlockMaterial.ambientTexture  = new BABYLON.Texture("assets/marbleTexture.jpg", scene);
+
+            // Rotação do primeiro bloco para cair, caso necessário
             if(drop)
                 arrayBlocks[0].rotation = new BABYLON.Vector3(85, 0, 0);
-            i = 0;
+            
 
-            // definir posição, material e física dos blocos
+            // Posição relativa, material, física e eventos dos blocos
+            i = 0;
             arrayBlocks.forEach(block => {
                 block.position.z += radius * (Math.sin(i * (sizeRotation/2) / (quantityBlocks/2))) + positionOnScene.z;
                 block.position.y += 1.25 + positionOnScene.y;
                 block.position.x += radius * (Math.cos(i * (sizeRotation/2) / (quantityBlocks/2))) + (quantityBlocks/25 * i / quantityBlocks) + positionOnScene.x;
-
                 block.rotation = new BABYLON.Vector3(0, -i * (sizeRotation)/ quantityBlocks,  0);
-                
                 if(i==0 && drop)
                     block.rotation = new BABYLON.Vector3(0.15, 0, 0);    
                 
-                block.material = myMaterial;
+                block.material = rotatingBlockMaterial;
+
                 block.physicsImpostor = new BABYLON.PhysicsImpostor(block, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 2, restitution: 0.5 }, scene);
+
+                // Eventos dos blocos
+                block.actionManager = new BABYLON.ActionManager(scene);
+                block.actionManager.registerAction(
+                    // Eliminar mesh quando colidir com killPlane
+                    new BABYLON.ExecuteCodeAction(
+                        {
+                            trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                            parameter:killPlane
+                        }, 
+                        function(){
+                            block.dispose();
+                        }
+                ));
                 
                 i++;
             });
         }
 
         function spawnRamp(scene, rampPosition, rampRotation, thickness, ballSize, name){
+            // Desenhar a forma da rampa para extrusão
             var shape0 = [
                         new BABYLON.Vector3(0, 0, 0),
                         new BABYLON.Vector3(2 * thickness + ballSize, 0, 0),
@@ -279,49 +347,78 @@
                         new BABYLON.Vector3(thickness, 0, (2 * thickness + ballSize)/2),
                         new BABYLON.Vector3(0, 0, (2 * thickness + ballSize)/2)
                     ];
-
-            // material rosa
-            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
-            myMaterial.ambientTexture  = new BABYLON.Texture("assets/lightWoodTexture.jpg", scene);
-            // myMaterial.diffuseColor = new BABYLON.Color3(1, 0, 1);
-            
             rampObj = BABYLON.MeshBuilder.ExtrudePolygon("ramp" + name, {shape:shape0, depth: 15 * ballSize, sideOrientation: BABYLON.Mesh.DOUBLESIDE });
-            rampObj.material = myMaterial;
-            rampObj.position.y += rampPosition.y; //30;
-            rampObj.position.z += rampPosition.z; //-20;
+            
+            // KillPlane
+            var killPlane = scene.getMeshByName("killPlane");
+
+            // Material
+            var rampMaterial = new BABYLON.StandardMaterial("rampMaterial", scene);
+            rampMaterial.ambientTexture  = new BABYLON.Texture("assets/lightWoodTexture.jpg", scene);
+            rampObj.material = rampMaterial;
+            
+            // Posição do objeto na cena
+            rampObj.position.y += rampPosition.y;
+            rampObj.position.z += rampPosition.z;
             rampObj.position.x += rampPosition.x;
-            // rampObj.position.z += thickness;
             rampObj.rotation = new BABYLON.Vector3(-Math.PI/2 + rampRotation, 0, 0); //rampPosition = Math.PI/8
 
+            //Físicas
             rampObj.physicsImpostor = new BABYLON.PhysicsImpostor(rampObj, BABYLON.PhysicsImpostor.MeshImpostor,{mass:0, friction:1},scene);
+
+            //Eventos do mesh
+            rampObj.actionManager = new BABYLON.ActionManager(scene);
+            rampObj.actionManager.registerAction(
+                    // Eliminar mesh se colidir com killPlane
+                    new BABYLON.ExecuteCodeAction(
+                        {
+                            trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                            parameter:killPlane
+                        }, 
+                        function(){
+                            rampObj.dispose();
+                        }
+                ));
+
         }
 
         function spawnHeavyBall(scene, ballPosition, ballSize){
+            // Definir mesh
             var ball = BABYLON.Mesh.CreateSphere("ball", 16, ballSize, scene);
 
-            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
-            myMaterial.ambientTexture  = new BABYLON.Texture("assets/glassTexture.jpg", scene);
-            ball.material = myMaterial;
-            
-            ball.position.y += ballPosition.y;
-            ball.position.z += ballPosition.z;
-            ball.position.x += ballPosition.x;
-            
-            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 5, restitution: 0, friction:0.5 }, scene);
-        }
+            // Material
+            var ballMaterial = new BABYLON.StandardMaterial("ballMaterial", scene);
+            ballMaterial.ambientTexture  = new BABYLON.Texture("assets/glassTexture.jpg", scene);
+            ball.material = ballMaterial;
 
-        function spawnLightBall(scene, ballPosition, ballSize){
-            var ball = BABYLON.Mesh.CreateSphere("ball", 16,ballSize, scene);
+            // KillPlane
+            var killPlane = scene.getMeshByName("killPlane");
             
+            // Posição do objeto na cena
             ball.position.y += ballPosition.y;
             ball.position.z += ballPosition.z;
             ball.position.x += ballPosition.x;
-            
-            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 1, restitution: 3, friction:0.5 }, scene);
+
+            // Físicas
+            ball.physicsImpostor = new BABYLON.PhysicsImpostor(ball, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 5, restitution: 0, friction:0.5 }, scene);
+
+            // Eventos com a bola
+            ball.actionManager = new BABYLON.ActionManager(scene);
+            ball.actionManager.registerAction(
+            new BABYLON.ExecuteCodeAction(
+                {
+                    trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                    parameter:killPlane
+                }, 
+                function(){
+                    ball.dispose();
+                }
+            )
+        );
         }
 
         function spawnPendulum(scene, positionOnScene, rotationOnScene, name){
-            //Pivot (para unir a movimentação do pêndulo)
+            // Pivot (para unir a movimentação do pêndulo)
             var pivot = BABYLON.MeshBuilder.CreateCylinder("pivot" + name, {diameter:0.5, height: 0.1}, scene);
             pivot.rotation = new BABYLON.Vector3(Math.PI/2, 0, 0);
             
@@ -329,7 +426,7 @@
             pivotMaterial.diffuseColor = new BABYLON.Color3.White();
             pivot.material = pivotMaterial;
             
-            //Corda
+            // Corda
             var rope = BABYLON.MeshBuilder.CreateBox("Rope", {height: 0.1, width:8, depth:0.1}, scene);
             rope.position = new BABYLON.Vector3(3, 0, 0);
             
@@ -337,7 +434,7 @@
             ropeMaterial.ambientTexture  = new BABYLON.Texture("assets/ropeTexture.jpg", scene);
             rope.material = ropeMaterial;
 
-            //bola
+            // Bola
             var ball = BABYLON.Mesh.CreateSphere("ball", 16, 2, scene);
             ball.position = new BABYLON.Vector3(7, 0, 0);
             
@@ -345,19 +442,24 @@
             ballMaterial.ambientTexture  = new BABYLON.Texture("assets/marbleTexture.jpg", scene);
             ball.material = ballMaterial;
 
+            // Posições relativas
             pivot.position.y += 10;
             rope.position.y += 5;
             ball.position.y += 5;
 
-            var mesh = BABYLON.Mesh.MergeMeshes([rope, ball]);
+            // KillPlane
+            var killPlane = scene.getMeshByName("killPlane");
 
-            // Physics
+            // Unir meshes da corda e da bola, para obedecer a física
+            var meshBallRope = BABYLON.Mesh.MergeMeshes([rope, ball]);
+
+            // Física
             scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
 
-            mesh.physicsImpostor = new BABYLON.PhysicsImpostor(mesh, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 5, restitution: 0, friction:0.5 }, scene);
+            meshBallRope.physicsImpostor = new BABYLON.PhysicsImpostor(meshBallRope, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 5, restitution: 0, friction:0.5 }, scene);
             pivot.physicsImpostor = new BABYLON.PhysicsImpostor(pivot, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 0}, scene);
             
-            //Joint
+            // Física para unir objetos com joint e comportar como pêndulo (definição de eixos entre objetos)
             var joint1 = new BABYLON.PhysicsJoint(BABYLON.PhysicsJoint.HingeJoint, {  
                 mainPivot: new BABYLON.Vector3(0, 0, 0),
                 connectedPivot: new BABYLON.Vector3(-4.75, 0, 0),
@@ -366,21 +468,35 @@
                 nativeParams: {
                 }
             }); 
+            pivot.physicsImpostor.addJoint(meshBallRope.physicsImpostor, joint1);    
 
-            pivot.physicsImpostor.addJoint(mesh.physicsImpostor, joint1);    
-
-            var groupedMeshes = new BABYLON.TransformNode();
-            pivot.parent = groupedMeshes;
-            mesh.parent = groupedMeshes;
-            groupedMeshes.rotation.y += rotationOnScene;
+            // Agrupar meshes e posicionar na cena
+            var pendulumMesh = new BABYLON.TransformNode();
+            pivot.parent = pendulumMesh;
+            meshBallRope.parent = pendulumMesh;
             
-            groupedMeshes.position.x += positionOnScene.x;
-            groupedMeshes.position.y += positionOnScene.y;
-            groupedMeshes.position.z += positionOnScene.z;
+            pendulumMesh.rotation.y += rotationOnScene;
+            pendulumMesh.position.x += positionOnScene.x;
+            pendulumMesh.position.y += positionOnScene.y;
+            pendulumMesh.position.z += positionOnScene.z;
+
+            //Eventos do mesh
+            pendulumMesh.actionManager = new BABYLON.ActionManager(scene);
+            pendulumMesh.actionManager.registerAction(
+                    // Eliminar o bloco quando colidir com killPlane
+                    new BABYLON.ExecuteCodeAction(
+                        {
+                            trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                            parameter:killPlane
+                        }, 
+                        function(){
+                            pendulumMesh.dispose();
+                        }
+                ));
         }
 
         function spawnSeesaw(scene, positionOnScene, rotationOnScene){
-            //Pivot
+            // Pivot
             var pivot = BABYLON.MeshBuilder.CreateCylinder("pivot", {diameter:4, height: 4}, scene);
             pivot.rotation = new BABYLON.Vector3(Math.PI/2, 0, 0);
             
@@ -388,7 +504,7 @@
             pivotMaterial.ambientTexture  = new BABYLON.Texture("assets/darkWoodTexture.jpg", scene);
             pivot.material = pivotMaterial;
             
-            //Tampo
+            // Tampo
             var box = BABYLON.MeshBuilder.CreateBox("Box", {height: 1, width:35, depth:4}, scene);
             box.position = new BABYLON.Vector3(3, 0, 0);
 
@@ -396,16 +512,20 @@
             boxMaterial.ambientTexture  = new BABYLON.Texture("assets/rubberGreyTexture.jpg", scene);
             box.material = boxMaterial;
 
+            // KillPlane
+            var killPlane = scene.getMeshByName("killPlane");
+
+            // Posição relativa
             pivot.position.y += 1;
             box.position.y += 1;
 
-            // Physics
+            // Física
             scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
 
             box.physicsImpostor = new BABYLON.PhysicsImpostor(box, BABYLON.PhysicsImpostor.BoxImpostor, {  mass: 1, restitution: 1, friction:0.5  }, scene);
             pivot.physicsImpostor = new BABYLON.PhysicsImpostor(pivot, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 0}, scene);
             
-            //Joint
+            // Regras de eixo de joint entre meshes
             var joint1 = new BABYLON.PhysicsJoint(BABYLON.PhysicsJoint.HingeJoint, {  
                 mainPivot: new BABYLON.Vector3(0, 0, 0),
                 connectedPivot: new BABYLON.Vector3(0, -2.5, 0),
@@ -414,70 +534,83 @@
                 nativeParams: {
                 }
             }); 
-
             pivot.physicsImpostor.addJoint(box.physicsImpostor, joint1);
 
-            var groupedMeshes = new BABYLON.TransformNode();
-            pivot.parent = groupedMeshes;
-            box.parent = groupedMeshes;
-            groupedMeshes.rotation.y += rotationOnScene;
+            // Agrupar meshes e posicionar na cena
+            var seesawMesh = new BABYLON.TransformNode();
+            pivot.parent = seesawMesh;
+            box.parent = seesawMesh;
+            seesawMesh.rotation.y += rotationOnScene;
             
-            groupedMeshes.position.x += positionOnScene.x;
-            groupedMeshes.position.y += positionOnScene.y;
-            groupedMeshes.position.z += positionOnScene.z;
-        }
-      
-        function spawnMobile(scene){   
-            var boxHorizontal = BABYLON.MeshBuilder.CreateBox("BoxHorizontal", {height: 0.5, width:0.5, depth:15}, scene);
-            boxHorizontal.position = new BABYLON.Vector3(0, 7.5, 0);
-            var blueMat = new BABYLON.StandardMaterial("blue", scene);
-            blueMat.diffuseColor = new BABYLON.Color3.Blue();
-            boxHorizontal.material = blueMat;
+            seesawMesh.position.x += positionOnScene.x;
+            seesawMesh.position.y += positionOnScene.y;
+            seesawMesh.position.z += positionOnScene.z;
 
-            // var mesh = BABYLON.Mesh.MergeMeshes([boxVertical, boxHorizontal]);
-
-            //Pivot
-            var pivot = BABYLON.MeshBuilder.CreateCylinder("pivot", {diameter:1, height: 15}, scene);
-            var greenMat = new BABYLON.StandardMaterial("green", scene);
-            greenMat.diffuseColor = new BABYLON.Color3.Green();
-            pivot.material = greenMat;
-            pivot.position.y += 10;
-
-            pivot.rotation.y = Math.PI/2;
-            boxHorizontal.rotation.y = Math.PI/2;
-
-            scene.enablePhysics(new BABYLON.Vector3(0, 0, 0), new BABYLON.CannonJSPlugin());
-
-            boxHorizontal.physicsImpostor = new BABYLON.PhysicsImpostor(boxHorizontal, BABYLON.PhysicsImpostor.BoxImpostor, { mass: 1, restitution: 1, friction:0.5 }, scene);
-            pivot.physicsImpostor = new BABYLON.PhysicsImpostor(pivot, BABYLON.PhysicsImpostor.SphereImpostor, { mass: 0}, scene);
-            
-            //Joint
-            var joint1 = new BABYLON.PhysicsJoint(BABYLON.PhysicsJoint.HingeJoint, {  
-                mainPivot: new BABYLON.Vector3(0, 0, 0),
-                connectedPivot: new BABYLON.Vector3(0, 7.5, 0),
-                mainAxis: new BABYLON.Vector3(0, 1, 0),
-                connectedAxis: new BABYLON.Vector3(0, 0, 0),
-                nativeParams: {
-                }
-            }); 
-
-            pivot.physicsImpostor.addJoint(boxHorizontal.physicsImpostor, joint1);
+            //Eventos do mesh
+            seesawMesh.actionManager = new BABYLON.ActionManager(scene);
+            seesawMesh.actionManager.registerAction(
+                    // Eliminar o bloco quando colidir com killPlane
+                    new BABYLON.ExecuteCodeAction(
+                        {
+                            trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                            parameter:killPlane
+                        }, 
+                        function(){
+                            seesawMesh.dispose();
+                        }
+                ));
         }
 
         function spawnCylinder(scene, positionOnScene, rotationScene, heightCylinder, radiusCylinder, name){
+            // Mesh
             var cylinder = BABYLON.MeshBuilder.CreateCylinder("cylinder" + name, {diameter:2*radiusCylinder, height: heightCylinder}, scene);
 
+            // Material
             var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
             myMaterial.ambientTexture  = new BABYLON.Texture("assets/marbleTile.jpg", scene);
             cylinder.material = myMaterial;
             
+            // Rotacionar para ficar na posição horizontal ao chão
             cylinder.rotation.x += Math.PI/2;
 
+            // Posicionar na cena
             cylinder.position.y += positionOnScene.y;
             cylinder.position.z += positionOnScene.z;
             cylinder.position.x += positionOnScene.x;
+
+            // KillPlane
+            var killPlane = scene.getMeshByName("killPlane");
             
-            cylinder.physicsImpostor = new BABYLON.PhysicsImpostor(cylinder, BABYLON.PhysicsImpostor.CylinderImpostor, { mass: 1, restitution: 0, friction:0.5 }, scene);
+            // Física
+            cylinder.physicsImpostor = new BABYLON.PhysicsImpostor(cylinder, BABYLON.PhysicsImpostor.CylinderImpostor, { mass: 1, restitution: 1, friction:0 }, scene);
+
+            //Eventos do mesh
+            cylinder.actionManager = new BABYLON.ActionManager(scene);
+            cylinder.actionManager.registerAction(
+                    // Eliminar o mesh quando colidir com killPlane
+                    new BABYLON.ExecuteCodeAction(
+                        {
+                            trigger:BABYLON.ActionManager.OnIntersectionEnterTrigger,
+                            parameter:killPlane
+                        }, 
+                        function(){
+                            cylinder.dispose();
+                        }
+                ));
+        }
+
+        function spawnButton(scene, positionOnScene, rotationScene, heightButton, radiusButton, name){
+            var button = BABYLON.MeshBuilder.CreateCylinder("button" + name, {diameter:2*radiusButton, height: heightButton}, scene);
+
+            var myMaterial = new BABYLON.StandardMaterial("myMaterial", scene);
+            myMaterial.ambientTexture  = new BABYLON.Texture("assets/redGlassTexture.jpg", scene);
+            button.material = myMaterial;
+
+            button.position.y += positionOnScene.y;
+            button.position.z += positionOnScene.z;
+            button.position.x += positionOnScene.x;
+            
+            button.physicsImpostor = new BABYLON.PhysicsImpostor(button, BABYLON.PhysicsImpostor.CylinderImpostor, { mass: 1, restitution: 0, friction:0.5 }, scene);
         }
 
         function showWorldAxis(size) {
